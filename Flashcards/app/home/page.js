@@ -1,10 +1,13 @@
 'use client'
 
 import { UserButton, useUser } from "@clerk/nextjs";
-import { Container, Typography, AppBar, Toolbar, Button, Box, Grid, ThemeProvider, createTheme } from '@mui/material';
-import { useEffect } from "react";
+import { Container, Typography, AppBar, Toolbar, Button, Box, Grid, ThemeProvider, createTheme, TextField, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { styled } from '@mui/system';
+import { db, signInWithClerk } from '../lib/firebase';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { motion, AnimatePresence } from 'framer-motion';
 import '@fontsource/pacifico';
 import '@fontsource/roboto';
 import '@fontsource/montserrat';
@@ -69,15 +72,132 @@ const FeatureBox = styled(Box)({
   color: 'white',
 });
 
+const StyledDialog = styled(Dialog)(({ theme }) => ({
+  '& .MuiDialog-paper': {
+    borderRadius: '20px',
+    padding: theme.spacing(2),
+    background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
+  },
+}));
+
+const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
+  fontFamily: 'Pacifico, cursive',
+  color: 'white',
+  textAlign: 'center',
+  fontSize: '2rem',
+}));
+
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  '& .MuiInputBase-root': {
+    color: 'white',
+  },
+  '& label': {
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  '& .MuiInput-underline:before': {
+    borderBottomColor: 'rgba(255, 255, 255, 0.7)',
+  },
+  '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
+    borderBottomColor: 'white',
+  },
+  '& .MuiInput-underline:after': {
+    borderBottomColor: 'white',
+  },
+}));
+
 export default function HomePage() {
   const { isSignedIn, user, isLoaded } = useUser();
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [userDetails, setUserDetails] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    subscriptionStatus: 'free'
+  });
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.push('/');
+    } else if (isSignedIn && user) {
+      signInWithClerk(user).then(() => {
+        fetchUserDetails();
+      });
     }
-  }, [isSignedIn, isLoaded, router]);
+  }, [isSignedIn, isLoaded, router, user]);
+
+  const fetchUserDetails = async () => {
+    try {
+      const userRef = doc(db, 'users', user.id);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        setUserDetails(userSnap.data());
+      } else {
+        setOpenDialog(true);
+      }
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setUserDetails({ ...userDetails, [e.target.name]: e.target.value });
+  };
+
+  const handleUserRegistration = async () => {
+    setLoading(true);
+    try {
+      await setDoc(doc(db, 'users', user.id), {
+        ...userDetails,
+        clerkId: user.id,
+        subscriptionStatus: 'free'
+      });
+      setOpenDialog(false);
+    } catch (error) {
+      console.error('Error registering user:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePayment = async (planType) => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/create-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          planType,
+          userId: user.id,
+        }),
+      });
+
+      const { checkoutUrl } = await response.json();
+      
+      // Redirect to Square Checkout
+      window.location.href = checkoutUrl;
+    } catch (error) {
+      console.error('Payment error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSubscriptionStatus = async (newStatus) => {
+    try {
+      const userRef = doc(db, 'users', user.id);
+      await updateDoc(userRef, {
+        subscriptionStatus: newStatus
+      });
+      setUserDetails(prevDetails => ({...prevDetails, subscriptionStatus: newStatus}));
+    } catch (error) {
+      console.error('Error updating subscription status:', error);
+    }
+  };
 
   if (!isLoaded || !isSignedIn) {
     return <div>Loading...</div>;
@@ -93,7 +213,7 @@ export default function HomePage() {
                 DoughLingo
               </LogoText>
               <Box sx={{display: 'flex', alignItems: 'center', gap: 2}}>
-                <Typography sx={{color: 'white'}}>{user?.firstName}</Typography>
+                <Typography sx={{color: 'white'}}>{userDetails.name}</Typography>
                 <UserButton afterSignOutUrl="/" />
               </Box>
             </Toolbar>
@@ -101,7 +221,7 @@ export default function HomePage() {
 
           <Box sx={{textAlign:'center', my:6}}>
             <WelcomeText variant="h2" gutterBottom>
-              Welcome to DoughLingo, {user?.firstName}!
+              Welcome to DoughLingo, {userDetails.name}!
             </WelcomeText>
             <Typography variant="h5" gutterBottom sx={{color: 'white', mb: 4}}>
               A fun way to learn a language
@@ -138,15 +258,20 @@ export default function HomePage() {
             <Grid container spacing={4} justifyContent="center">
               {[
                 { title: 'Basic', price: 'Free', description: 'Access to beginner lessons' },
-                { title: 'Pro', price: '₹15/month', description: 'Access to advanced features' }
+                { title: 'Pro', price: '$0.18/month', description: 'Access to advanced features' }
               ].map((plan, index) => (
                 <Grid item xs={12} md={6} key={index}>
                   <FeatureBox>
                     <Typography variant="h5" gutterBottom>{plan.title}</Typography>
                     <Typography variant="h6" gutterBottom>{plan.price}</Typography>
                     <Typography sx={{mb: 2}}>{plan.description}</Typography>
-                    <StyledButton variant="contained" color="primary">
-                      I'll take this!
+                    <StyledButton 
+                      variant="contained" 
+                      color="primary"
+                      onClick={() => handlePayment(plan.title.toLowerCase())}
+                      disabled={loading || (plan.title === 'Basic') || (userDetails.subscriptionStatus === 'pro' && plan.title === 'Pro')}
+                    >
+                      {loading ? 'Processing...' : userDetails.subscriptionStatus === 'pro' && plan.title === 'Pro' ? 'Current Plan' : "I'll take this!"}
                     </StyledButton>
                   </FeatureBox>
                 </Grid>
@@ -154,6 +279,91 @@ export default function HomePage() {
             </Grid>
           </Box>
         </Container>
+
+        <AnimatePresence>
+          {openDialog && (
+            <StyledDialog
+              open={openDialog}
+              onClose={() => setOpenDialog(false)}
+              aria-labelledby="registration-dialog-title"
+              PaperComponent={motion.div}
+              PaperProps={{
+                initial: { y: -50, opacity: 0 },
+                animate: { y: 0, opacity: 1 },
+                exit: { y: -50, opacity: 0 },
+                transition: { duration: 0.3 }
+              }}
+            >
+              <StyledDialogTitle id="registration-dialog-title">
+                Join DoughLingo
+              </StyledDialogTitle>
+              <DialogContent>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2, duration: 0.3 }}
+                >
+                  <StyledTextField
+                    autoFocus
+                    margin="dense"
+                    name="name"
+                    label="Name"
+                    type="text"
+                    fullWidth
+                    variant="standard"
+                    value={userDetails.name}
+                    onChange={handleInputChange}
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.3 }}
+                >
+                  <StyledTextField
+                    margin="dense"
+                    name="email"
+                    label="Email Address"
+                    type="email"
+                    fullWidth
+                    variant="standard"
+                    value={userDetails.email}
+                    onChange={handleInputChange}
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4, duration: 0.3 }}
+                >
+                  <StyledTextField
+                    margin="dense"
+                    name="phone"
+                    label="Phone Number"
+                    type="tel"
+                    fullWidth
+                    variant="standard"
+                    value={userDetails.phone}
+                    onChange={handleInputChange}
+                  />
+                </motion.div>
+              </DialogContent>
+              <DialogActions>
+                <StyledButton onClick={() => setOpenDialog(false)} color="secondary">
+                  Cancel
+                </StyledButton>
+                <StyledButton 
+                  onClick={handleUserRegistration} 
+                  disabled={loading}
+                  color="primary"
+                  variant="contained"
+                >
+                  {loading ? 'Registering...' : 'Join Now'}
+                </StyledButton>
+              </DialogActions>
+            </StyledDialog>
+          )}
+        </AnimatePresence>
       </GradientBackground>
     </ThemeProvider>
   );
