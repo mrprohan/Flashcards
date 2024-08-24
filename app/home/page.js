@@ -325,7 +325,7 @@ export default function HomePage() {
               </StyledDialogTitle>
               <DialogContent>
                 <Typography variant="body1" gutterBottom sx={{ color: 'white' }}>
-                  You're signing up for our {selectedPlan === 'basic' ? 'Free Basic' : 'Pro'} Plan. Complete your registration to get started!
+                  You are signing up for our {selectedPlan === 'basic' ? 'Free Basic' : 'Pro'} Plan. Complete your registration to get started!
                 </Typography>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
