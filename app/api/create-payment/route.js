@@ -1,4 +1,4 @@
-// app/api/create-payment/route.js
+
 import { NextResponse } from 'next/server';
 import { Client, Environment } from 'square';
 
