@@ -38,7 +38,7 @@ async function handleUpdateSubscription(request) {
     });
 
     // Use a fallback URL if the origin is not available
-    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:https://flashcards-virid-five.vercel.app/';
+    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'https://flashcards-virid-five.vercel.app/';
     const redirectUrl = new URL('/home', origin).toString();
 
     return NextResponse.redirect(redirectUrl);
