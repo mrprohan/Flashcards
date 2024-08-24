@@ -110,11 +110,12 @@ export default function HomePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
   const [userDetails, setUserDetails] = useState({
     name: '',
     email: '',
     phone: '',
-    subscriptionStatus: 'free'
+    subscriptionStatus: 'none'
   });
 
   useEffect(() => {
@@ -135,7 +136,11 @@ export default function HomePage() {
       if (userSnap.exists()) {
         setUserDetails(userSnap.data());
       } else {
-        setOpenDialog(true);
+        // If the user doesn't exist in Firestore yet, initialize with Clerk email
+        setUserDetails(prevState => ({
+          ...prevState,
+          email: user.emailAddresses[0].emailAddress // Assuming the first email is the primary one
+        }));
       }
     } catch (error) {
       console.error('Error fetching user details:', error);
@@ -143,7 +148,9 @@ export default function HomePage() {
   };
 
   const handleInputChange = (e) => {
-    setUserDetails({ ...userDetails, [e.target.name]: e.target.value });
+    if (e.target.name !== 'email') {
+      setUserDetails({ ...userDetails, [e.target.name]: e.target.value });
+    }
   };
 
   const handleUserRegistration = async () => {
@@ -152,9 +159,14 @@ export default function HomePage() {
       await setDoc(doc(db, 'users', user.id), {
         ...userDetails,
         clerkId: user.id,
-        subscriptionStatus: 'free'
+        subscriptionStatus: selectedPlan
       });
       setOpenDialog(false);
+      setUserDetails(prevDetails => ({...prevDetails, subscriptionStatus: selectedPlan}));
+      
+      if (selectedPlan === 'pro') {
+        handleProPayment();
+      }
     } catch (error) {
       console.error('Error registering user:', error);
     } finally {
@@ -162,7 +174,7 @@ export default function HomePage() {
     }
   };
 
-  const handlePayment = async (planType) => {
+  const handleProPayment = async () => {
     setLoading(true);
     try {
       const response = await fetch('/api/create-payment', {
@@ -171,7 +183,7 @@ export default function HomePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          planType,
+          planType: 'pro',
           userId: user.id,
         }),
       });
@@ -187,16 +199,27 @@ export default function HomePage() {
     }
   };
 
-  const updateSubscriptionStatus = async (newStatus) => {
-    try {
-      const userRef = doc(db, 'users', user.id);
-      await updateDoc(userRef, {
-        subscriptionStatus: newStatus
-      });
-      setUserDetails(prevDetails => ({...prevDetails, subscriptionStatus: newStatus}));
-    } catch (error) {
-      console.error('Error updating subscription status:', error);
+  const handlePlanSelection = (planType) => {
+    setSelectedPlan(planType);
+    if (userDetails.subscriptionStatus === 'none') {
+      setOpenDialog(true);
+    } else if (planType === 'pro') {
+      handleProPayment();
     }
+  };
+
+  const isCurrentPlan = (planType) => {
+    return userDetails.subscriptionStatus === planType;
+  };
+
+  const isPlanAvailable = (planType) => {
+    if (planType === 'basic') {
+      return userDetails.subscriptionStatus === 'none';
+    }
+    if (planType === 'pro') {
+      return userDetails.subscriptionStatus !== 'pro';
+    }
+    return false;
   };
 
   if (!isLoaded || !isSignedIn) {
@@ -268,10 +291,13 @@ export default function HomePage() {
                     <StyledButton 
                       variant="contained" 
                       color="primary"
-                      onClick={() => handlePayment(plan.title.toLowerCase())}
-                      disabled={loading || (plan.title === 'Basic') || (userDetails.subscriptionStatus === 'pro' && plan.title === 'Pro')}
+                      onClick={() => handlePlanSelection(plan.title.toLowerCase())}
+                      disabled={loading || isCurrentPlan(plan.title.toLowerCase()) || !isPlanAvailable(plan.title.toLowerCase())}
                     >
-                      {loading ? 'Processing...' : userDetails.subscriptionStatus === 'pro' && plan.title === 'Pro' ? 'Current Plan' : "I'll take this!"}
+                      {loading ? 'Processing...' : 
+                       isCurrentPlan(plan.title.toLowerCase()) ? 'Current Plan' : 
+                       isPlanAvailable(plan.title.toLowerCase()) ? "I'll take this!" :
+                       'Not Available'}
                     </StyledButton>
                   </FeatureBox>
                 </Grid>
@@ -295,9 +321,12 @@ export default function HomePage() {
               }}
             >
               <StyledDialogTitle id="registration-dialog-title">
-                Join DoughLingo
+                Join DoughLingo - {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan
               </StyledDialogTitle>
               <DialogContent>
+                <Typography variant="body1" gutterBottom sx={{ color: 'white' }}>
+                  You're signing up for our {selectedPlan === 'basic' ? 'Free Basic' : 'Pro'} Plan. Complete your registration to get started!
+                </Typography>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -328,7 +357,9 @@ export default function HomePage() {
                     fullWidth
                     variant="standard"
                     value={userDetails.email}
-                    onChange={handleInputChange}
+                    InputProps={{
+                      readOnly: true,
+                    }}
                   />
                 </motion.div>
                 <motion.div
