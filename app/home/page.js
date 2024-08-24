@@ -296,7 +296,7 @@ export default function HomePage() {
                     >
                       {loading ? 'Processing...' : 
                        isCurrentPlan(plan.title.toLowerCase()) ? 'Current Plan' : 
-                       isPlanAvailable(plan.title.toLowerCase()) ? "I&apos;ll take this!":
+                       isPlanAvailable(plan.title.toLowerCase()) ? "I'll take this!":
                        'Not Available'}
                     </StyledButton>
                   </FeatureBox>
