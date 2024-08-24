@@ -22,7 +22,7 @@ export async function POST(request) {
 
     const locationId = locations[0].id;
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://flashcards-virid-five.vercel.app/';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     const redirectUrl = new URL(`/api/update-subscription?userId=${userId}&planType=${planType}`, baseUrl).toString();
 
     const response = await squareClient.checkoutApi.createPaymentLink({
