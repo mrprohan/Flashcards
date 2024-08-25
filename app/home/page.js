@@ -1,16 +1,19 @@
 'use client'
 
 import { UserButton, useUser } from "@clerk/nextjs";
-import { Container, Typography, AppBar, Toolbar, Button, Box, Grid, ThemeProvider, createTheme, TextField, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
+import { Container, Typography, Toolbar, Box, Grid, ThemeProvider, createTheme, DialogActions, DialogContent } from '@mui/material';
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { styled } from '@mui/system';
 import { db, signInWithClerk } from '../lib/firebase';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import '@fontsource/pacifico';
 import '@fontsource/roboto';
 import '@fontsource/montserrat';
+import {
+  GradientBackground, StyledAppBar, LogoText, WelcomeText, StyledButton,
+  FeatureBox, StyledDialog, StyledDialogTitle, StyledTextField
+} from '../styles/HomePageStyles';
 
 const theme = createTheme({
   typography: {
@@ -18,92 +21,13 @@ const theme = createTheme({
   },
   palette: {
     primary: {
-      main: '#4a148c',
+      main: '#46211A', // Chestnut brown
     },
     secondary: {
-      main: '#ff6e40',
+      main: '#A43820', // Burnt sienna
     },
   },
 });
-
-const GradientBackground = styled('div')({
-  background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
-  minHeight: '100vh',
-  padding: theme.spacing(3),
-});
-
-const StyledAppBar = styled(AppBar)({
-  background: 'rgba(255, 255, 255, 0.1)',
-  backdropFilter: 'blur(10px)',
-  boxShadow: 'none',
-});
-
-const LogoText = styled(Typography)({
-  fontFamily: 'Pacifico, cursive',
-  color: 'white',
-  fontSize: '2rem',
-});
-
-const WelcomeText = styled(Typography)({
-  fontFamily: 'Roboto, sans-serif',
-  color: 'white',
-  fontWeight: 700,
-});
-
-const StyledButton = styled(Button)({
-  borderRadius: '25px',
-  padding: '10px 20px',
-  textTransform: 'none',
-  fontSize: '1rem',
-  fontWeight: 600,
-  boxShadow: '0 3px 5px 2px rgba(255, 105, 135, .3)',
-  transition: 'all 0.3s',
-  '&:hover': {
-    transform: 'translateY(-2px)',
-    boxShadow: '0 6px 10px 4px rgba(255, 105, 135, .3)',
-  },
-});
-
-const FeatureBox = styled(Box)({
-  background: 'rgba(255, 255, 255, 0.1)',
-  backdropFilter: 'blur(10px)',
-  borderRadius: '15px',
-  padding: theme.spacing(3),
-  color: 'white',
-});
-
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-  '& .MuiDialog-paper': {
-    borderRadius: '20px',
-    padding: theme.spacing(2),
-    background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
-  },
-}));
-
-const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
-  fontFamily: 'Pacifico, cursive',
-  color: 'white',
-  textAlign: 'center',
-  fontSize: '2rem',
-}));
-
-const StyledTextField = styled(TextField)(({ theme }) => ({
-  '& .MuiInputBase-root': {
-    color: 'white',
-  },
-  '& label': {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  '& .MuiInput-underline:before': {
-    borderBottomColor: 'rgba(255, 255, 255, 0.7)',
-  },
-  '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
-    borderBottomColor: 'white',
-  },
-  '& .MuiInput-underline:after': {
-    borderBottomColor: 'white',
-  },
-}));
 
 export default function HomePage() {
   const { isSignedIn, user, isLoaded } = useUser();
@@ -136,10 +60,9 @@ export default function HomePage() {
       if (userSnap.exists()) {
         setUserDetails(userSnap.data());
       } else {
-        // If the user doesn't exist in Firestore yet, initialize with Clerk email
         setUserDetails(prevState => ({
           ...prevState,
-          email: user.emailAddresses[0].emailAddress // Assuming the first email is the primary one
+          email: user.emailAddresses[0].emailAddress
         }));
       }
     } catch (error) {
@@ -189,8 +112,6 @@ export default function HomePage() {
       });
 
       const { checkoutUrl } = await response.json();
-      
-      // Redirect to Square Checkout
       window.location.href = checkoutUrl;
     } catch (error) {
       console.error('Payment error:', error);
@@ -208,17 +129,11 @@ export default function HomePage() {
     }
   };
 
-  const isCurrentPlan = (planType) => {
-    return userDetails.subscriptionStatus === planType;
-  };
+  const isCurrentPlan = (planType) => userDetails.subscriptionStatus === planType;
 
   const isPlanAvailable = (planType) => {
-    if (planType === 'basic') {
-      return userDetails.subscriptionStatus === 'none';
-    }
-    if (planType === 'pro') {
-      return userDetails.subscriptionStatus !== 'pro';
-    }
+    if (planType === 'basic') return userDetails.subscriptionStatus === 'none';
+    if (planType === 'pro') return userDetails.subscriptionStatus !== 'pro';
     return false;
   };
 
@@ -236,7 +151,7 @@ export default function HomePage() {
                 DoughLingo
               </LogoText>
               <Box sx={{display: 'flex', alignItems: 'center', gap: 2}}>
-                <Typography sx={{color: 'white'}}>{userDetails.name}</Typography>
+                <Typography sx={{color: '#46211A'}}>{userDetails.name}</Typography>
                 <UserButton afterSignOutUrl="/" />
               </Box>
             </Toolbar>
@@ -246,7 +161,7 @@ export default function HomePage() {
             <WelcomeText variant="h2" gutterBottom>
               Welcome to DoughLingo, {userDetails.name}!
             </WelcomeText>
-            <Typography variant="h5" gutterBottom sx={{color: 'white', mb: 4}}>
+            <Typography variant="h5" gutterBottom sx={{color: '#A43820', mb: 4}}>
               A fun way to learn a language
             </Typography>
             <StyledButton variant="contained" color="secondary">
@@ -255,7 +170,7 @@ export default function HomePage() {
           </Box>
 
           <Box sx={{my: 6}}>
-            <Typography variant="h4" gutterBottom sx={{color: 'white', textAlign: 'center', mb: 4}}>
+            <Typography variant="h4" gutterBottom sx={{color: '#46211A', textAlign: 'center', mb: 4}}>
               Features
             </Typography>
             <Grid container spacing={4}>
@@ -275,7 +190,7 @@ export default function HomePage() {
           </Box>
 
           <Box sx={{my: 6, textAlign:'center'}}>
-            <Typography variant="h4" gutterBottom sx={{color: 'white', mb: 4}}>
+            <Typography variant="h4" gutterBottom sx={{color: '#46211A', mb: 4}}>
               Pricing
             </Typography>
             <Grid container spacing={4} justifyContent="center">
@@ -324,60 +239,32 @@ export default function HomePage() {
                 Join DoughLingo - {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan
               </StyledDialogTitle>
               <DialogContent>
-                <Typography variant="body1" gutterBottom sx={{ color: 'white' }}>
+                <Typography variant="body1" gutterBottom sx={{ color: '#46211A' }}>
                   You are signing up for our {selectedPlan === 'basic' ? 'Free Basic' : 'Pro'} Plan. Complete your registration to get started!
                 </Typography>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2, duration: 0.3 }}
-                >
-                  <StyledTextField
-                    autoFocus
-                    margin="dense"
-                    name="name"
-                    label="Name"
-                    type="text"
-                    fullWidth
-                    variant="standard"
-                    value={userDetails.name}
-                    onChange={handleInputChange}
-                  />
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 0.3 }}
-                >
-                  <StyledTextField
-                    margin="dense"
-                    name="email"
-                    label="Email Address"
-                    type="email"
-                    fullWidth
-                    variant="standard"
-                    value={userDetails.email}
-                    InputProps={{
-                      readOnly: true,
-                    }}
-                  />
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4, duration: 0.3 }}
-                >
-                  <StyledTextField
-                    margin="dense"
-                    name="phone"
-                    label="Phone Number"
-                    type="tel"
-                    fullWidth
-                    variant="standard"
-                    value={userDetails.phone}
-                    onChange={handleInputChange}
-                  />
-                </motion.div>
+                {['name', 'email', 'phone'].map((field, index) => (
+                  <motion.div
+                    key={field}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 * (index + 1), duration: 0.3 }}
+                  >
+                    <StyledTextField
+                      autoFocus={index === 0}
+                      margin="dense"
+                      name={field}
+                      label={field.charAt(0).toUpperCase() + field.slice(1)}
+                      type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'}
+                      fullWidth
+                      variant="standard"
+                      value={userDetails[field]}
+                      onChange={handleInputChange}
+                      InputProps={{
+                        readOnly: field === 'email',
+                      }}
+                    />
+                  </motion.div>
+                ))}
               </DialogContent>
               <DialogActions>
                 <StyledButton onClick={() => setOpenDialog(false)} color="secondary">
