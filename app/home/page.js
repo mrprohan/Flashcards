@@ -2,18 +2,22 @@
 
 import { UserButton, useUser } from "@clerk/nextjs";
 import { Container, Typography, Toolbar, Box, Grid, ThemeProvider, createTheme, DialogActions, DialogContent } from '@mui/material';
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { db, signInWithClerk } from '../lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import '@fontsource/pacifico';
 import '@fontsource/roboto';
 import '@fontsource/montserrat';
+import '@fontsource/dancing-script';
 import {
   GradientBackground, StyledAppBar, LogoText, WelcomeText, StyledButton,
-  FeatureBox, StyledDialog, StyledDialogTitle, StyledTextField
+  FeatureBox, StyledDialog, StyledDialogTitle, StyledTextField, SectionDivider,
+  HeroSection, HeroContent, HeroDescription, ButtonGroup,
+  LogoContainer
 } from '../styles/HomePageStyles';
+import Image from 'next/image';
 
 const theme = createTheme({
   typography: {
@@ -41,6 +45,13 @@ export default function HomePage() {
     phone: '',
     subscriptionStatus: 'none'
   });
+
+  const pricingRef = useRef(null);
+  const featuresRef = useRef(null);
+
+  const { scrollYProgress } = useScroll();
+  const opacity = useTransform(scrollYProgress, [0, 0.3], [0, 1]);
+  const scale = useTransform(scrollYProgress, [0, 0.3], [0.8, 1]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -122,10 +133,15 @@ export default function HomePage() {
 
   const handlePlanSelection = (planType) => {
     setSelectedPlan(planType);
-    if (userDetails.subscriptionStatus === 'none') {
-      setOpenDialog(true);
+    if (planType === 'basic') {
+      // Use router.push for client-side navigation
+      router.push('/generate');
     } else if (planType === 'pro') {
-      handleProPayment();
+      if (userDetails.subscriptionStatus === 'none') {
+        setOpenDialog(true);
+      } else {
+        handleProPayment();
+      }
     }
   };
 
@@ -137,6 +153,14 @@ export default function HomePage() {
     return false;
   };
 
+  const scrollToPricing = () => {
+    pricingRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const scrollToFeatures = () => {
+    featuresRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   if (!isLoaded || !isSignedIn) {
     return <div>Loading...</div>;
   }
@@ -145,7 +169,7 @@ export default function HomePage() {
     <ThemeProvider theme={theme}>
       <GradientBackground>
         <Container maxWidth="lg">
-          <StyledAppBar position="static">
+          <StyledAppBar position="fixed">
             <Toolbar>
               <LogoText variant="h6" sx={{flexGrow: 1}}>
                 DoughLingo
@@ -157,67 +181,111 @@ export default function HomePage() {
             </Toolbar>
           </StyledAppBar>
 
-          <Box sx={{textAlign:'center', my:6}}>
-            <WelcomeText variant="h2" gutterBottom>
-              Welcome to DoughLingo, {userDetails.name}!
-            </WelcomeText>
-            <Typography variant="h5" gutterBottom sx={{color: '#A43820', mb: 4}}>
-              A fun way to learn a language
-            </Typography>
-            <StyledButton variant="contained" color="secondary">
-              Get Started
-            </StyledButton>
-          </Box>
+          <HeroSection>
+            <HeroContent>
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+              >
+                <LogoContainer>
+                  <Image
+                    src="/Dough_lingo_nb.png"
+                    alt="DoughLingo Logo"
+                    width={150}
+                    height={150}
+                  />
+                </LogoContainer>
+                <WelcomeText variant="h1" gutterBottom>
+                  Welcome to DoughLingo!
+                </WelcomeText>
+                <HeroDescription variant="h5" gutterBottom>
+                  Knead your way through language learning with our unique bread-themed lessons. 
+                  Rise to the challenge and become fluent, one slice at a time!
+                </HeroDescription>
+                <ButtonGroup>
+                  <StyledButton variant="contained" color="secondary" onClick={scrollToPricing}>
+                    Get Started
+                  </StyledButton>
+                  <StyledButton variant="outlined" color="primary" onClick={scrollToFeatures}>
+                    Learn More
+                  </StyledButton>
+                </ButtonGroup>
+              </motion.div>
+            </HeroContent>
+          </HeroSection>
 
-          <Box sx={{my: 6}}>
-            <Typography variant="h4" gutterBottom sx={{color: '#46211A', textAlign: 'center', mb: 4}}>
-              Features
-            </Typography>
-            <Grid container spacing={4}>
-              {['Text-to-audio', 'Translation', 'Progress'].map((feature, index) => (
-                <Grid item xs={12} md={4} key={index}>
-                  <FeatureBox>
-                    <Typography variant="h6" gutterBottom>
-                      {feature}
-                    </Typography>
-                    <Typography>
-                      Our system uses advanced technology to enhance your learning experience.
-                    </Typography>
-                  </FeatureBox>
-                </Grid>
-              ))}
-            </Grid>
-          </Box>
+          <SectionDivider />
 
-          <Box sx={{my: 6, textAlign:'center'}}>
-            <Typography variant="h4" gutterBottom sx={{color: '#46211A', mb: 4}}>
-              Pricing
-            </Typography>
-            <Grid container spacing={4} justifyContent="center">
-              {[
-                { title: 'Basic', price: 'Free', description: 'Access to beginner lessons' },
-                { title: 'Pro', price: '$0.18/month', description: 'Access to advanced features' }
-              ].map((plan, index) => (
-                <Grid item xs={12} md={6} key={index}>
-                  <FeatureBox>
-                    <Typography variant="h5" gutterBottom>{plan.title}</Typography>
-                    <Typography variant="h6" gutterBottom>{plan.price}</Typography>
-                    <Typography sx={{mb: 2}}>{plan.description}</Typography>
-                    <StyledButton 
-                      variant="contained" 
-                      color="primary"
-                      onClick={() => handlePlanSelection(plan.title.toLowerCase())}
-                      disabled={loading || isCurrentPlan(plan.title.toLowerCase()) || !isPlanAvailable(plan.title.toLowerCase())}
+          <Box sx={{my: 12}} ref={featuresRef}>
+            <motion.div style={{ opacity, scale }}>
+              <Typography variant="h4" gutterBottom sx={{color: '#46211A', textAlign: 'center', mb: 6,}}>
+                Features
+              </Typography>
+              <Grid container spacing={4}>
+                {['Text-to-audio', 'Translation', 'Progress'].map((feature, index) => (
+                  <Grid item xs={12} md={4} key={index}>
+                    <motion.div
+                      whileHover={{ scale: 1.05, rotateY: 10 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      {loading ? 'Processing...' : 
-                       isCurrentPlan(plan.title.toLowerCase()) ? 'Current Plan' : 
-                       isPlanAvailable(plan.title.toLowerCase()) ? "I'll take this!":
-                       'Not Available'}
-                    </StyledButton>
-                  </FeatureBox>
-                </Grid>
-              ))}
-            </Grid>
+                      <FeatureBox>
+                        <Typography variant="h6" gutterBottom>
+                          {feature}
+                        </Typography>
+                        <Typography>
+                          Our system uses advanced technology to enhance your learning experience.
+                        </Typography>
+                      </FeatureBox>
+                    </motion.div>
+                  </Grid>
+                ))}
+              </Grid>
+            </motion.div>
+          </Box>
+
+          <SectionDivider />
+
+          <Box sx={{my: 12}} ref={pricingRef}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+            >
+              <Typography variant="h4" gutterBottom sx={{color: '#46211A', textAlign: 'center', mb: 6}}>
+                Pricing
+              </Typography>
+              <Grid container spacing={4} justifyContent="center">
+                {[
+                  { title: 'Basic', price: 'Free', description: 'Access to beginner lessons' },
+                  { title: 'Pro', price: '$0.18/month', description: 'Access to advanced features' }
+                ].map((plan, index) => (
+                  <Grid item xs={12} md={6} key={index}>
+                    <motion.div
+                      whileHover={{ scale: 1.05, rotateY: 10 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <FeatureBox>
+                        <Typography variant="h5" gutterBottom>{plan.title}</Typography>
+                        <Typography variant="h6" gutterBottom>{plan.price}</Typography>
+                        <Typography sx={{mb: 2}}>{plan.description}</Typography>
+                        <StyledButton 
+                          variant="contained" 
+                          color="primary"
+                          onClick={() => handlePlanSelection(plan.title.toLowerCase())}
+                          disabled={loading || isCurrentPlan(plan.title.toLowerCase()) || !isPlanAvailable(plan.title.toLowerCase())}
+                        >
+                          {loading ? 'Processing...' : 
+                           isCurrentPlan(plan.title.toLowerCase()) ? 'Current Plan' : 
+                           isPlanAvailable(plan.title.toLowerCase()) ? "I'll take this!":
+                           'Not Available'}
+                        </StyledButton>
+                      </FeatureBox>
+                    </motion.div>
+                  </Grid>
+                ))}
+              </Grid>
+            </motion.div>
           </Box>
         </Container>
 
@@ -236,11 +304,11 @@ export default function HomePage() {
               }}
             >
               <StyledDialogTitle id="registration-dialog-title">
-                Join DoughLingo - {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan
+                Join DoughLingo - Pro Plan
               </StyledDialogTitle>
               <DialogContent>
                 <Typography variant="body1" gutterBottom sx={{ color: '#46211A' }}>
-                  You are signing up for our {selectedPlan === 'basic' ? 'Free Basic' : 'Pro'} Plan. Complete your registration to get started!
+                  You are signing up for our Pro Plan. Complete your registration to get started!
                 </Typography>
                 {['name', 'email', 'phone'].map((field, index) => (
                   <motion.div

@@ -12,6 +12,7 @@
     "@clerk/nextjs": "^5.3.2",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
+    "@fontsource/dancing-script": "^5.0.19",
     "@fontsource/montserrat": "^5.0.19",
     "@fontsource/pacifico": "^5.0.14",
     "@fontsource/roboto": "^5.0.14",
