@@ -137,21 +137,21 @@ export default function HomePage() {
       // Use router.push for client-side navigation
       router.push('/generate');
     } else if (planType === 'pro') {
-      if (userDetails.subscriptionStatus === 'none') {
+      if (userDetails.subscriptionStatus !== 'pro') {
         setOpenDialog(true);
       } else {
-        handleProPayment();
+        alert("you're already on pro plan,Enjoy all the features!");
       }
     }
   };
 
   const isCurrentPlan = (planType) => userDetails.subscriptionStatus === planType;
 
-  const isPlanAvailable = (planType) => {
-    if (planType === 'basic') return userDetails.subscriptionStatus === 'none';
-    if (planType === 'pro') return userDetails.subscriptionStatus !== 'pro';
-    return false;
-  };
+  // const isPlanAvailable = (planType) => {
+  //   if (planType === 'basic') return true;
+  //   if (planType === 'pro') return userDetails.subscriptionStatus !== 'pro';
+  //   return false;
+  // };
 
   const scrollToPricing = () => {
     pricingRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -273,12 +273,14 @@ export default function HomePage() {
                           variant="contained" 
                           color="primary"
                           onClick={() => handlePlanSelection(plan.title.toLowerCase())}
-                          disabled={loading || isCurrentPlan(plan.title.toLowerCase()) || !isPlanAvailable(plan.title.toLowerCase())}
+                          disabled={loading ||(plan.title.toLowerCase()==='pro' && isCurrentPlan('pro'))}
                         >
                           {loading ? 'Processing...' : 
-                           isCurrentPlan(plan.title.toLowerCase()) ? 'Current Plan' : 
-                           isPlanAvailable(plan.title.toLowerCase()) ? "I'll take this!":
-                           'Not Available'}
+                           plan.title.toLowerCase() === 'basic' ? 
+                           (isCurrentPlan('pro')? "Access Basic Features" : "Start Learning") :
+                           isCurrentPlan('pro') ? 'Current Plan' :
+                           "Upgrade to Pro"}
+                           
                         </StyledButton>
                       </FeatureBox>
                     </motion.div>
